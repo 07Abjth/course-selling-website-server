@@ -1,6 +1,7 @@
+// models/mentorModel.js
 import mongoose from 'mongoose';
 
-const userSchema = new mongoose.Schema({
+const mentorSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -14,12 +15,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  expertise: {
+    type: String,
+    required: true,
+  },
   role: {
     type: String,
-    enum: ['user',  'admin', 'mentor'],  
-    default: 'user',
+    enum: ['mentor', 'admin'],
+    default: 'mentor',
   },
 });
 
-export default mongoose.model('User', userSchema);
-
+const Mentor = mongoose.model('Mentor', mentorSchema);
+export default Mentor;

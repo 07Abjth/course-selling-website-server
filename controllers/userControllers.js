@@ -1,37 +1,64 @@
-import User from '../models/userModel.js'; // Import User model
-import bcrypt from 'bcryptjs'; // If you're using bcrypt for password hashing
-import jwt from 'jsonwebtoken'; // If you're using JWT for authentication
+import User from '../models/userModel.js';  
+import bcrypt from 'bcrypt';   
+import generateToken from '../utils/generateToken.js';  
 
+// Register a new user
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, phoneNumber, password, confirmPassword } = req.body;
+
+    // Check if all required fields are provided
+    if (!name || !email || !phoneNumber || !password || !confirmPassword) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    // Check if passwords match
+    if (password !== confirmPassword) {
+      return res.status(400).json({ success: false, message: "Passwords do not match" });
+    }
 
     // Check if the user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
     // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create the user
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role,
-    });
+console.log("password====>",password);
+console.log("hashedPassword====>",hashedPassword);
 
-    // Save the user to the database
-    await newUser.save();
 
-    // Generate JWT token
-    const token = jwt.sign({ id: newUser._id, role: newUser.role }, 'your-secret-key', { expiresIn: '1h' });
 
-    return res.status(201).json({ message: 'User registered successfully', token });
+    // Create a new user
+    const user = new User({ name, email, password: hashedPassword, phoneNumber });
+    await user.save();
+
+    // If user creation is successful, generate a JWT token
+    if (user) {
+      const token = generateToken(user, "user");
+
+      // Send the token as a cookie
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // Only use secure cookies in production
+        sameSite: "strict",
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "User created successfully",
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        token,
+      });
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid user data" });
+    }
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
